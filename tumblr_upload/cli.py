@@ -1,13 +1,15 @@
 import logging
 import os
 from glob import glob
-from typing import Dict, List
+from typing import List
 
 import click
 import pytumblr
 import yaml
 from PIL import Image
 from termcolor import colored
+
+from .util import archive, parse_tags, render_tags
 
 ARCHIVE_DIR = 'uploaded'
 TAGS_FILE = 'tags.yml'
@@ -25,28 +27,7 @@ if os.path.exists(TAGS_FILE):
         global_tags = global_tags + yaml.load(f)['tags']
 
 
-def ensure_dir(dirname: str) -> None:
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-
-
-def archive(infile: str) -> str:
-    basename = os.path.basename(infile)
-    archivefile = os.path.join(ARCHIVE_DIR, basename)
-    ensure_dir(ARCHIVE_DIR)
-    os.rename(infile, archivefile)
-    return archivefile
-
-
-def render_tags(tags: List[str]) -> str:
-    return ', '.join(map(lambda x: f'#{x}', tags))
-
-
-def parse_tags(tags: str) -> List[str]:
-    return list(map(lambda x: x.strip(), tags.split(',')))
-
-
-def upload(blogname:str , path: str, show: bool) -> None:
+def upload(blogname: str, path: str, show: bool) -> None:
     if show:
         Image.open(path).show()
     caption = click.prompt("  Add caption", default='', show_default=False)
@@ -60,7 +41,7 @@ def upload(blogname:str , path: str, show: bool) -> None:
         response = client.create_photo(blogname, data=path, state='queue', caption=caption, tags=tags)
         logger.debug(response)
         if 'response' not in response:
-            archivefile = archive(path)
+            archivefile = archive(path, ARCHIVE_DIR)
             click.echo(colored(f"  Archived as {archivefile}", 'green'))
             click.echo()
         else:
