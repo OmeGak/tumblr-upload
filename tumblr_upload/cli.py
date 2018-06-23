@@ -1,4 +1,3 @@
-import logging
 import os
 from glob import glob
 from typing import List
@@ -9,13 +8,12 @@ import yaml
 from PIL import Image
 from termcolor import colored
 
-from .util import archive, parse_tags, render_tags
+from tumblr_upload.util import archive, parse_tags, render_tags
 
 ARCHIVE_DIR = 'uploaded'
 TAGS_FILE = 'tags.yml'
 TUMBLR_KEYS_FILE = os.path.expanduser('~/.tumblr')
 
-logger = logging.getLogger()
 global_tags: List[str] = []
 
 with open(TUMBLR_KEYS_FILE, 'r') as f:
@@ -35,17 +33,34 @@ def upload(blogname: str, path: str, show: bool) -> None:
     tags = global_tags
     if tags_str:
         tags = tags + parse_tags(tags_str)
+    confirm_upload(blogname=blogname, path=path, caption=caption, tags=tags)
+
+
+def confirm_upload(blogname: str, path: str, caption: str, tags: List[str]) -> None:
     click.echo(f"  Caption: \"{caption}\"")
     click.echo(f"  Tags: {render_tags(tags)}")
     if click.confirm(f"  Upload?", default=True):
-        response = client.create_photo(blogname, data=path, state='queue', caption=caption, tags=tags)
-        logger.debug(response)
-        if 'response' not in response:
+        if try_upload(blogname=blogname, path=path, caption=caption, tags=tags):
             archivefile = archive(path, ARCHIVE_DIR)
-            click.echo(colored(f"  Archived as {archivefile}", 'green'))
+            click.echo(colored(f"  Uploaded and archived as {archivefile}", 'green'))
             click.echo()
-        else:
-            raise Exception("Pic couldn't get uploaded")
+
+
+def try_upload(blogname: str, path: str, caption: str, tags: List[str]) -> bool:
+    while True:
+        try:
+            do_upload(blogname=blogname, path=path, caption=caption, tags=tags)
+            return True
+        except Exception as exc:
+            click.echo(f"  {exc}")
+            if not click.confirm("  Try again?", default=True):
+                return False
+
+
+def do_upload(blogname: str, path: str, caption: str, tags: List[str]) -> None:
+    response = client.create_photo(blogname, data=path, state='queue', caption=caption, tags=tags)
+    if 'response' in response:
+        raise Exception(f"Pic couldn't get uploaded: {response}")
 
 
 @click.command()
