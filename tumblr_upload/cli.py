@@ -68,7 +68,9 @@ def do_upload(blogname: str, path: str, caption: str, tags: List[str]) -> None:
 @click.argument('path', type=click.Path(exists=True), default='.')
 @click.option('--quiet', '-q', is_flag=True)
 def cli(blogname: str, path: str, quiet: bool) -> None:
-    filenames = sorted(glob('{}/*.jpg'.format(path)))
+    click.echo(f"Looking for JPEG files in {path}")
+    filenames = sorted(glob('{}/*.jpeg'.format(path)))
+    click.echo(f"{len(filenames)} files found")
     for idx, filename in enumerate(filenames):
         click.echo(f"Processing {filename} ({idx+1}/{len(filenames)})...")
         upload(blogname, filename, show=not quiet)
